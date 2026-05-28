@@ -61,7 +61,8 @@ def _repo_skill_signals(repo: dict[str, Any]) -> dict[str, int]:
         signals["Frontend"] += 22
     if repo.get("has_backend"):
         signals["Backend"] += 22
-    if repo.get("language", "").lower() in ("python", "r", "julia") and repo.get("has_tests"):
+    language = (repo.get("language") or "").lower()
+    if language in ("python", "r", "julia") and repo.get("has_tests"):
         signals["Data Science"] += 12
     if repo.get("has_readme"):
         signals["Documentation"] += 15
