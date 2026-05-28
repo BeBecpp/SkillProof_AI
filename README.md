@@ -156,8 +156,10 @@ Generated reports are saved locally in SQLite.
 | SQLite report history | Ready |
 | Markdown export | Ready |
 | Swagger API docs | Ready |
-| GitHub scanner integration | Ready for module connection |
-| Frontend dashboard | In progress |
+| GitHub scanner integration | Ready |
+| Repo evidence scanner | Ready |
+| Minimal frontend dashboard | Ready |
+| Polished React dashboard | In progress |
 | AI API integration | Optional future upgrade |
 
 ---
@@ -741,9 +743,10 @@ This MVP was built by two young developers combining backend engineering, cybers
 - [x] SQLite report history
 - [x] Markdown export
 - [x] Swagger API docs
-- [ ] Real GitHub scanner
-- [ ] Repo evidence scanner
-- [ ] React dashboard
+- [x] Real GitHub scanner
+- [x] Repo evidence scanner
+- [x] Minimal frontend dashboard
+- [ ] Polished React dashboard
 
 ### v1.1
 

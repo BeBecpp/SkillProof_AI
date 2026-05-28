@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkillProof AI</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Proof-of-skill MVP</p>
+          <h1>SkillProof AI</h1>
+          <p class="sub">Analyze public GitHub projects and generate a structured builder report.</p>
+        </div>
+        <form id="analyze-form" class="analyze-form">
+          <input id="username" name="username" placeholder="GitHub username, e.g. BeBecpp" autocomplete="off" />
+          <button id="analyze-button" type="submit">Analyze</button>
+        </form>
+      </section>
+
+      <p id="status" class="status"></p>
+
+      <section id="result" class="result hidden">
+        <div class="summary">
+          <img id="avatar" alt="" />
+          <div>
+            <h2 id="result-title"></h2>
+            <p id="identity"></p>
+            <a id="github-link" target="_blank" rel="noreferrer">Open GitHub profile</a>
+          </div>
+          <div class="score">
+            <span id="score"></span>
+            <small>Builder Score</small>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <article>
+            <h3>Skill Map</h3>
+            <div id="skill-map" class="bars"></div>
+          </article>
+          <article>
+            <h3>Strong / Weak Areas</h3>
+            <div class="columns">
+              <div>
+                <h4>Strong</h4>
+                <ul id="strong-areas"></ul>
+              </div>
+              <div>
+                <h4>Weak</h4>
+                <ul id="weak-areas"></ul>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <article>
+          <div class="section-head">
+            <h3>Repo Analysis</h3>
+            <button id="export-button" type="button">Export Markdown</button>
+          </div>
+          <div id="repos" class="repos"></div>
+        </article>
+
+        <article>
+          <h3>AI Summary</h3>
+          <p id="summary-text"></p>
+          <h3>30-Day Improvement Plan</h3>
+          <ol id="plan"></ol>
+        </article>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -88,18 +88,72 @@ def _github_analyzer_available() -> bool:
     return spec is not None
 
 
-def _fetch_repos_via_analyzer(username: str) -> list[dict[str, Any]] | None:
+def _fetch_via_analyzer(username: str) -> dict[str, Any] | None:
     if not _github_analyzer_available():
         return None
     try:
         import github_analyzer  # type: ignore
 
         result = github_analyzer.analyze_user(username)
-        if isinstance(result, list) and result:
+        if isinstance(result, dict):
             return result
-    except Exception:
+        if isinstance(result, list):
+            return {"username": username, "repos": result}
+    except Exception as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
         return None
     return None
+
+
+def _mock_profile(username: str) -> dict[str, Any]:
+    return {
+        "username": username,
+        "avatar_url": f"https://github.com/{username}.png",
+        "github_url": f"https://github.com/{username}",
+        "repos": _mock_repos(username),
+    }
+
+
+def _normalize_profile(username: str, raw: Any) -> dict[str, Any]:
+    if raw is None:
+        return _mock_profile(username)
+    if isinstance(raw, list):
+        return {
+            "username": username,
+            "avatar_url": f"https://github.com/{username}.png",
+            "github_url": f"https://github.com/{username}",
+            "repos": raw,
+        }
+    if isinstance(raw, dict):
+        repos = raw.get("repos")
+        if not isinstance(repos, list):
+            repos = []
+        return {
+            "username": raw.get("username") or username,
+            "avatar_url": raw.get("avatar_url") or f"https://github.com/{username}.png",
+            "github_url": raw.get("github_url") or f"https://github.com/{username}",
+            "repos": repos,
+        }
+    return _mock_profile(username)
+
+
+def _fetch_profile(username: str) -> dict[str, Any]:
+    profile = _fetch_via_analyzer(username)
+    if profile is not None:
+        return _normalize_profile(username, profile)
+    return _mock_profile(username)
+
+
+def _fetch_repos_via_analyzer(username: str) -> list[dict[str, Any]] | None:
+    try:
+        profile = _fetch_via_analyzer(username)
+        if profile is None:
+            return None
+        return _normalize_profile(username, profile)["repos"]
+    except HTTPException:
+        return None
 
 
 def _mock_repos(username: str) -> list[dict[str, Any]]:
@@ -189,6 +243,9 @@ def _mock_repos(username: str) -> list[dict[str, Any]]:
 
 def _build_findings(repo: dict[str, Any]) -> list[Finding]:
     findings: list[Finding] = []
+    for item in repo.get("security_findings", []):
+        if isinstance(item, dict):
+            findings.append(Finding(**item))
     if repo.get("has_readme"):
         findings.append(
             Finding(
@@ -286,7 +343,9 @@ def _repos_to_models(repos: list[dict[str, Any]]) -> list[RepoAnalysis]:
 
 
 def build_report(username: str, raw_repos: list[dict[str, Any]] | None = None) -> ReportResponse:
-    repos_data = raw_repos or _fetch_repos_via_analyzer(username) or _mock_repos(username)
+    profile = _normalize_profile(username, raw_repos) if raw_repos is not None else _fetch_profile(username)
+    username = profile["username"]
+    repos_data = profile["repos"]
     repos_data = _enrich_repos(repos_data)
     skill_map = calculate_skill_map(repos_data)
     builder_score = calculate_builder_score(repos_data, skill_map)
@@ -313,8 +372,8 @@ def build_report(username: str, raw_repos: list[dict[str, Any]] | None = None) -
     report = ReportResponse(
         id=report_id,
         username=username,
-        avatar_url=f"https://github.com/{username}.png",
-        github_url=f"https://github.com/{username}",
+        avatar_url=profile["avatar_url"],
+        github_url=profile["github_url"],
         builder_score=builder_score,
         main_identity=main_identity,
         skill_map=skill_map,
