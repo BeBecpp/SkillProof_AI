@@ -232,7 +232,75 @@ function markdownForReport(report) {
 }
 
 function IconButton({ children, className = "", ...props }) {
-  return e("button", { className: cx("icon-button", className), ...props }, children);
+  return e("button", { className: cx("icon-button interactive", className), ...props }, children);
+}
+
+function CursorFX() {
+  const dotRef = useRef(null);
+  const ringRef = useRef(null);
+
+  useEffect(() => {
+    const dot = dotRef.current;
+    const ring = ringRef.current;
+    if (!dot || !ring) return undefined;
+
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+    let ringX = mouseX;
+    let ringY = mouseY;
+    let frameId = 0;
+
+    function move(event) {
+      mouseX = event.clientX;
+      mouseY = event.clientY;
+      document.documentElement.style.setProperty("--cursor-x", `${mouseX}px`);
+      document.documentElement.style.setProperty("--cursor-y", `${mouseY}px`);
+      dot.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%)`;
+    }
+
+    function enterInteractive() {
+      document.body.classList.add("cursor-hover");
+    }
+
+    function leaveInteractive() {
+      document.body.classList.remove("cursor-hover");
+    }
+
+    function bindInteractive() {
+      document.querySelectorAll("a, button, input, .interactive").forEach((node) => {
+        node.addEventListener("mouseenter", enterInteractive);
+        node.addEventListener("mouseleave", leaveInteractive);
+      });
+    }
+
+    function animate() {
+      ringX += (mouseX - ringX) * 0.18;
+      ringY += (mouseY - ringY) * 0.18;
+      ring.style.transform = `translate(${ringX}px, ${ringY}px) translate(-50%, -50%)`;
+      frameId = requestAnimationFrame(animate);
+    }
+
+    window.addEventListener("mousemove", move);
+    bindInteractive();
+    const observer = new MutationObserver(bindInteractive);
+    observer.observe(document.body, { childList: true, subtree: true });
+    animate();
+
+    return () => {
+      window.removeEventListener("mousemove", move);
+      observer.disconnect();
+      cancelAnimationFrame(frameId);
+      document.body.classList.remove("cursor-hover");
+    };
+  }, []);
+
+  return e(
+    React.Fragment,
+    null,
+    e("div", { className: "spotlight", "aria-hidden": "true" }),
+    e("div", { className: "cursor-dot", ref: dotRef, "aria-hidden": "true" }),
+    e("div", { className: "cursor-ring", ref: ringRef, "aria-hidden": "true" })
+  );
 }
 
 function AtomScene({ report, scanning }) {
@@ -384,7 +452,7 @@ function SkillBars({ skillMap = {} }) {
         "div",
         { className: "skill-row", key: label },
         e("span", null, label),
-        e("div", { className: "bar-track" }, e("div", { className: "bar-fill", style: { width: `${value}%` } })),
+        e("div", { className: "bar-track interactive" }, e("div", { className: "bar-fill", style: { width: `${value}%` } })),
         e("strong", null, value)
       )
     )
@@ -394,7 +462,7 @@ function SkillBars({ skillMap = {} }) {
 function EvidenceList({ title, items, tone }) {
   return e(
     "section",
-    { className: "evidence-panel" },
+    { className: "evidence-panel hover-tilt interactive" },
     e("h3", null, title),
     e(
       "ul",
@@ -417,7 +485,7 @@ function RepoList({ repos = [] }) {
       repos.map((repo) =>
         e(
           "article",
-          { className: "repo-item", key: repo.url || repo.name },
+          { className: "repo-item hover-tilt interactive", key: repo.url || repo.name },
           e(
             "div",
             { className: "repo-main" },
@@ -447,11 +515,11 @@ function RepoList({ repos = [] }) {
 function EmptyState({ onExample }) {
   return e(
     "section",
-    { className: "empty-state" },
+    { className: "empty-state hover-tilt" },
     e("div", { className: "empty-icon" }, e(BrainCircuit, { size: 28 })),
     e("h2", null, "Project evidence turns into a living skill map."),
     e("p", null, "Enter a GitHub username to scan public repositories, generate a builder score, and export a portfolio-ready report."),
-    e("button", { type: "button", onClick: onExample }, "Try BeBecpp")
+    e("button", { className: "interactive", type: "button", onClick: onExample }, "Try BeBecpp")
   );
 }
 
@@ -531,20 +599,21 @@ function App() {
   return e(
     "main",
     { className: "app-shell" },
+    e(CursorFX),
     e(AtomScene, { report, scanning }),
     e(
       "section",
       { className: "control-band" },
       e(
         "div",
-        { className: "brand-block" },
+        { className: "brand-block hover-tilt interactive" },
         e("div", { className: "mark" }, e(Sparkles, { size: 18 })),
         e("div", null, e("h1", null, "SkillProof AI"), e("p", null, "Your projects speak louder than your resume."))
       ),
       e(
         "form",
         {
-          className: "scan-form",
+          className: "scan-form interactive",
           onSubmit: (event) => {
             event.preventDefault();
             analyze();
@@ -559,14 +628,14 @@ function App() {
         }),
         e(
           "button",
-          { type: "submit", disabled: scanning },
+          { className: "interactive", type: "submit", disabled: scanning },
           scanning ? e(Loader2, { className: "spin", size: 18 }) : e(ScanSearch, { size: 18 }),
           scanning ? "Scanning" : "Analyze"
         )
       ),
       e(
         "div",
-        { className: "status-line" },
+        { className: "status-line hover-tilt" },
         error ? e("span", { className: "error" }, error) : e("span", null, status || "Ready")
       )
     ),
@@ -577,7 +646,7 @@ function App() {
         ? [
             e(
               "section",
-              { className: "identity-panel", key: "identity" },
+              { className: "identity-panel hover-tilt", key: "identity" },
               e("img", { src: report.avatar_url, alt: "" }),
               e(
                 "div",
@@ -591,13 +660,13 @@ function App() {
             e(
               "section",
               { className: "metric-grid", key: "metrics" },
-              e("article", null, e(Activity, { size: 20 }), e("span", null, "Top Signal"), e("strong", null, topSkill)),
-              e("article", null, e(ShieldCheck, { size: 20 }), e("span", null, "Repos"), e("strong", null, report.repos.length)),
-              e("article", null, e(BrainCircuit, { size: 20 }), e("span", null, "Identity"), e("strong", null, report.main_identity))
+              e("article", { className: "hover-tilt interactive" }, e(Activity, { size: 20 }), e("span", null, "Top Signal"), e("strong", null, topSkill)),
+              e("article", { className: "hover-tilt interactive" }, e(ShieldCheck, { size: 20 }), e("span", null, "Repos"), e("strong", null, report.repos.length)),
+              e("article", { className: "hover-tilt interactive" }, e(BrainCircuit, { size: 20 }), e("span", null, "Identity"), e("strong", null, report.main_identity))
             ),
             e(
               "section",
-              { className: "map-panel", key: "map" },
+              { className: "map-panel hover-tilt", key: "map" },
               e("div", { className: "section-title" }, e("h3", null, "Skill Map"), e("span", null, "Public evidence score")),
               e(SkillBars, { skillMap: report.skill_map })
             ),
@@ -610,7 +679,7 @@ function App() {
             e(RepoList, { repos: report.repos, key: "repos" }),
             e(
               "section",
-              { className: "summary-panel", key: "summary" },
+              { className: "summary-panel hover-tilt", key: "summary" },
               e(
                 "div",
                 { className: "section-title" },
