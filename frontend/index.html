@@ -1,13 +1,1384 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SkillProof AI</title>
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="./app.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkillProof AI</title>
+  <style>
+    :root {
+      --black: #050505;
+      --ink: #111111;
+      --paper: #f6f3ee;
+      --muted: #79746d;
+      --line: rgba(17,17,17,.10);
+      --green: #2da44e;
+      --blue: #0969da;
+      --shadow: 0 24px 80px rgba(0,0,0,.10);
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--paper);
+      overflow-x: hidden;
+    }
+    body.lock { overflow: hidden; }
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    .hidden { display: none !important; }
+    .container { width: min(1160px, calc(100% - 36px)); margin: 0 auto; }
+
+    /* absolute no page shift */
+    html, body { scroll-behavior: smooth; }
+    .site, .cover, .main, .nav, .hero {
+      transform: none !important;
+    }
+
+    /* hard no-shift patch */
+    .site, .cover, .main {
+      transform: none !important;
+    }
+
+    /* INTRO: clean stable premium animation */
+    .intro {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #000;
+      overflow: hidden;
+      transition: opacity 900ms cubic-bezier(.2,.8,.2,1), visibility 900ms cubic-bezier(.2,.8,.2,1);
+    }
+    .intro.hide {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .intro-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #000;
+    }
+
+    .site {
+      opacity: 1;
+      filter: none;
+      transform: none !important;
+      transition: none;
+    }
+    body.ready .site {
+      opacity: 1;
+      filter: none;
+      transform: none !important;
+    }
+
+    /* COVER */
+    .cover {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 12%, rgba(45,164,78,.11), transparent 29%),
+        radial-gradient(circle at 82% 10%, rgba(9,105,218,.09), transparent 27%),
+        linear-gradient(180deg, #fff 0%, #f6f3ee 72%, #f6f3ee 100%);
+    }
+    .cover-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: .55;
+      pointer-events: none;
+    }
+    .cover:after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,.20), rgba(246,243,238,.84) 76%, #f6f3ee);
+      pointer-events: none;
+    }
+
+    .nav {
+      position: relative;
+      z-index: 2;
+      padding: 22px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: #111;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      box-shadow: 0 12px 30px rgba(0,0,0,.14);
+    }
+    .brand-title {
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .25em;
+    }
+    .brand-sub {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .nav-links {
+      display: flex;
+      gap: 6px;
+      padding: 7px;
+      background: rgba(255,255,255,.62);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      backdrop-filter: blur(16px);
+    }
+    .nav-links a {
+      padding: 9px 15px;
+      border-radius: 999px;
+      font-size: 14px;
+      color: #4d4842;
+      transition: .2s ease;
+    }
+    .nav-links a:hover {
+      background: #111;
+      color: #fff;
+    }
+    .github {
+      padding: 10px 15px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.68);
+      font-size: 14px;
+      font-weight: 800;
+      backdrop-filter: blur(16px);
+      transition: .2s ease;
+    }
+    .github:hover {
+      transform: translateY(-2px);
+      background: #111;
+      color: #fff;
+    }
+
+    .hero {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 1.04fr .96fr;
+      gap: 48px;
+      align-items: center;
+      padding: 88px 0 96px;
+    }
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.70);
+      color: #4d4842;
+      font-size: 14px;
+      font-weight: 800;
+      backdrop-filter: blur(16px);
+    }
+    h1 {
+      margin: 24px 0 0;
+      max-width: 850px;
+      font-size: clamp(54px, 8vw, 112px);
+      line-height: .89;
+      letter-spacing: -.08em;
+      font-weight: 950;
+      color: #111;
+    }
+    .hero p {
+      max-width: 650px;
+      margin: 24px 0 0;
+      color: #5d5851;
+      font-size: 18px;
+      line-height: 1.75;
+    }
+
+    .analyzer {
+      margin-top: 32px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 11px;
+    }
+    .input {
+      min-height: 56px;
+      min-width: min(420px, 100%);
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.78);
+      box-shadow: 0 10px 35px rgba(0,0,0,.05);
+      backdrop-filter: blur(18px);
+    }
+    .input input {
+      width: 100%;
+      background: transparent;
+      border: 0;
+      outline: 0;
+      color: #111;
+    }
+    .input input::placeholder { color: #9a938a; }
+    .btn, .btn2 {
+      min-height: 56px;
+      padding: 0 22px;
+      border-radius: 18px;
+      font-weight: 900;
+      transition: .2s ease;
+    }
+    .btn {
+      background: #111;
+      color: #fff;
+      box-shadow: 0 16px 40px rgba(0,0,0,.16);
+    }
+    .btn2 {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.72);
+      color: #111;
+    }
+    .btn:hover, .btn2:hover { transform: translateY(-2px); }
+
+    .preview {
+      position: relative;
+      border-radius: 30px;
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(17,17,17,.10);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(24px);
+      padding: 24px;
+      overflow: hidden;
+    }
+    .preview:before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 70% 0%, rgba(45,164,78,.13), transparent 35%);
+      pointer-events: none;
+    }
+    .preview > * { position: relative; }
+    .preview-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .overline {
+      color: #6b665f;
+      text-transform: uppercase;
+      letter-spacing: .24em;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .preview h2, .card h2 {
+      margin: 7px 0 0;
+      color: #111;
+      font-size: 28px;
+      letter-spacing: -.045em;
+    }
+    .online {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #eef8f0;
+      color: #1f7a3b;
+      border: 1px solid #cfead5;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 13px;
+    }
+    .mini {
+      border-radius: 22px;
+      background: rgba(246,243,238,.80);
+      border: 1px solid var(--line);
+      padding: 16px;
+    }
+    .mini-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 900;
+      color: #4a4640;
+    }
+    .mini p {
+      margin: 13px 0 0;
+      font-weight: 900;
+    }
+    .track {
+      height: 8px;
+      border-radius: 999px;
+      background: #ddd7cc;
+      overflow: hidden;
+      margin-top: 13px;
+    }
+    .fill {
+      height: 100%;
+      width: var(--w);
+      background: linear-gradient(90deg, #111, #2da44e, #0969da);
+      border-radius: 999px;
+    }
+    .pipe {
+      margin-top: 14px;
+      padding: 15px;
+      border-radius: 24px;
+      background: rgba(246,243,238,.74);
+      border: 1px solid var(--line);
+    }
+    .pipe-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 12px;
+      margin-top: 8px;
+      border-radius: 15px;
+      background: rgba(255,255,255,.68);
+      color: #5d5851;
+      font-size: 14px;
+    }
+    .pipe-row b {
+      color: #111;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      font-size: 11px;
+    }
+
+    .main {
+      background: var(--paper);
+      padding: 78px 0 84px;
+    }
+    .section-title {
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto 34px;
+    }
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: .26em;
+      text-transform: uppercase;
+      color: #6b665f;
+      font-weight: 900;
+    }
+    .section-title h2 {
+      margin: 13px 0 0;
+      font-size: clamp(36px, 5vw, 64px);
+      line-height: 1;
+      letter-spacing: -.065em;
+    }
+    .section-title p {
+      color: #5d5851;
+      line-height: 1.7;
+      font-size: 17px;
+    }
+    .error {
+      display: none;
+      width: min(1160px, calc(100% - 36px));
+      margin: 0 auto 20px;
+      padding: 14px 17px;
+      border-radius: 16px;
+      background: #fff7df;
+      border: 1px solid #ead597;
+      color: #6a4d00;
+    }
+    .error.show { display: block; }
+
+    .grid-main {
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      gap: 18px;
+    }
+    .card {
+      background: rgba(255,255,255,.76);
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      box-shadow: var(--shadow);
+      padding: 25px;
+    }
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .ring {
+      width: 142px;
+      height: 142px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle, var(--paper) 58%, transparent 59%),
+        conic-gradient(from 190deg, #111 var(--score), #ddd7cc 0);
+    }
+    .ring strong {
+      display: block;
+      font-size: 40px;
+      letter-spacing: -.05em;
+    }
+    .ring small {
+      display: block;
+      color: #7c756d;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .18em;
+      text-align: center;
+    }
+    .pill {
+      display: inline-flex;
+      margin: 5px 0;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: #f2eee5;
+      border: 1px solid #e2dacc;
+      color: #4a4640;
+      font-size: 14px;
+      font-weight: 750;
+    }
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 22px 0 16px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+    .avatar {
+      width: 66px;
+      height: 66px;
+      border-radius: 21px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .profile h3 {
+      margin: 0;
+      font-size: 25px;
+      letter-spacing: -.04em;
+    }
+    .profile a {
+      display: inline-block;
+      margin-top: 5px;
+      color: #0969da;
+      font-size: 14px;
+      font-weight: 750;
+    }
+    .summary {
+      color: #5d5851;
+      line-height: 1.75;
+    }
+    .export {
+      width: 100%;
+      margin-top: 18px;
+      background: #111;
+      color: #fff;
+      border-radius: 18px;
+      padding: 16px;
+      font-weight: 900;
+    }
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .bars {
+      display: grid;
+      gap: 12px;
+    }
+    .skill {
+      display: grid;
+      grid-template-columns: 130px 1fr 40px;
+      align-items: center;
+      gap: 12px;
+      color: #4f4a44;
+      font-size: 13px;
+    }
+    .skill-track {
+      height: 12px;
+      border-radius: 999px;
+      background: #ddd7cc;
+      overflow: hidden;
+    }
+    .skill-fill {
+      height: 100%;
+      width: var(--w);
+      border-radius: 999px;
+      background: linear-gradient(90deg, #111, #2da44e, #0969da);
+    }
+    .radar-wrap {
+      height: 335px;
+      display: grid;
+      place-items: center;
+    }
+    .radar-svg {
+      width: min(100%, 350px);
+      height: 325px;
+      overflow: visible;
+    }
+    .radar-grid {
+      fill: none;
+      stroke: rgba(17,17,17,.16);
+    }
+    .radar-shape {
+      fill: rgba(45,164,78,.18);
+      stroke: #111;
+      stroke-width: 2.5;
+    }
+    .radar-label {
+      fill: #4f4a44;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .list-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .list-card h3 {
+      margin: 0 0 13px;
+      font-size: 18px;
+    }
+    .list-card ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .list-card li {
+      background: #f4efe6;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 12px 13px;
+      color: #5d5851;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .repo-layout {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .repo-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 13px;
+    }
+    .repo {
+      background: #f4efe6;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 17px;
+      transition: .2s ease;
+    }
+    .repo:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 45px rgba(17,17,17,.08);
+    }
+    .repo-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .repo h4 { margin: 0; }
+    .repo p {
+      margin: 5px 0 0;
+      color: #6b665f;
+      font-size: 13px;
+    }
+    .badge {
+      min-width: 44px;
+      height: 36px;
+      border-radius: 14px;
+      background: #111;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 950;
+    }
+    .flags {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+    .flag {
+      padding: 6px 9px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 12px;
+      color: #4f4a44;
+    }
+    .footer {
+      background: var(--paper);
+      color: #7c756d;
+      text-align: center;
+      padding: 28px;
+      border-top: 1px solid var(--line);
+    }
+
+    @media (max-width: 980px) {
+      .hero, .grid-main, .repo-layout { grid-template-columns: 1fr; }
+      .charts, .list-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .intro-message { font-size: clamp(28px, 7vw, 54px); }
+    }
+    @media (max-width: 720px) {
+      .container { width: min(100% - 26px, 1160px); }
+      .hero { padding-top: 50px; }
+      .analyzer { display: grid; }
+      .input { min-width: 0; }
+      .mini-grid, .repo-grid { grid-template-columns: 1fr; }
+      .score-row { flex-direction: column; align-items: flex-start; }
+      .skill { grid-template-columns: 92px 1fr 34px; }
+      .brand-sub { display: none; }
+      .intro-wrap { height: 240px; }
+    }
+  </style>
+</head>
+<body class="lock">
+  <div id="intro" class="intro">
+    <canvas id="introCanvas" class="intro-canvas"></canvas>
+  </div>
+
+  <main class="site">
+    <section class="cover">
+      <canvas id="coverCanvas" class="cover-canvas"></canvas>
+
+      <nav class="container nav">
+        <a class="brand" href="#">
+          <div class="logo">SP</div>
+          <div>
+            <div class="brand-title">SKILLPROOF</div>
+            <div class="brand-sub">Evidence-based developer scoring</div>
+          </div>
+        </a>
+        <div class="nav-links">
+          <a href="#analyzer">Analyzer</a>
+          <a href="#skill-map">Skill Map</a>
+          <a href="#reports">Reports</a>
+        </div>
+        <a class="github" href="https://github.com/BeBecpp/SkillProof_AI" target="_blank">GitHub</a>
+      </nav>
+
+      <div class="container hero">
+        <div>
+          <div class="kicker">GitHub projects → verified skill evidence</div>
+          <h1>Proof for builders, not resume talk.</h1>
+          <p>
+            SkillProof AI turns GitHub projects into a clean proof profile:
+            Builder Score, skill map, repo evidence, weak areas, suggested roles, and exportable report.
+          </p>
+
+          <div id="analyzer" class="analyzer">
+            <div class="input">
+              <span>⌘</span>
+              <input id="usernameInput" value="BeBecpp" placeholder="Enter GitHub username" />
+            </div>
+            <button id="analyzeBtn" class="btn">Analyze</button>
+            <button id="demoBtn" class="btn2">Demo</button>
+          </div>
+        </div>
+
+        <div class="preview">
+          <div class="preview-head">
+            <div>
+              <div class="overline">Live Preview</div>
+              <h2>Proof Engine</h2>
+            </div>
+            <div class="online">ONLINE</div>
+          </div>
+
+          <div class="mini-grid">
+            <div class="mini">
+              <div class="mini-top"><span>AI / ML</span><span>78%</span></div>
+              <p>Model + data work</p>
+              <div class="track"><div class="fill" style="--w:78%"></div></div>
+            </div>
+            <div class="mini">
+              <div class="mini-top"><span>Security</span><span>86%</span></div>
+              <p>CTF + review skill</p>
+              <div class="track"><div class="fill" style="--w:86%"></div></div>
+            </div>
+            <div class="mini">
+              <div class="mini-top"><span>Backend</span><span>74%</span></div>
+              <p>APIs + systems</p>
+              <div class="track"><div class="fill" style="--w:74%"></div></div>
+            </div>
+            <div class="mini">
+              <div class="mini-top"><span>Frontend</span><span>70%</span></div>
+              <p>UI + product polish</p>
+              <div class="track"><div class="fill" style="--w:70%"></div></div>
+            </div>
+          </div>
+
+          <div class="pipe">
+            <div class="pipe-row"><span>GitHub Profile</span><b>connected</b></div>
+            <div class="pipe-row"><span>Repo Signals</span><b>scanned</b></div>
+            <div class="pipe-row"><span>Skill Map</span><b>generated</b></div>
+            <div class="pipe-row"><span>Proof Report</span><b>ready</b></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="main">
+      <div class="section-title">
+        <div class="eyebrow">Developer Evidence Dashboard</div>
+        <h2>Everything important, scored from real projects.</h2>
+        <p>Minimal, portfolio-ready, and GitHub-compatible. Added a solid white orb intro with right-to-left reveal and left-to-right letter hide.</p>
+      </div>
+
+      <div id="errorBox" class="error"></div>
+
+      <section id="emptySection" class="container">
+        <div class="card">
+          <h2 style="font-size:38px;margin:0;letter-spacing:-.05em">Run a scan to generate the full dashboard.</h2>
+          <p class="summary">Click Analyze or Demo. Backend is optional; if it is offline, demo/fallback data still renders.</p>
+          <button id="loadDemoLarge" class="export" style="max-width:260px">Load demo report →</button>
+        </div>
+      </section>
+
+      <section id="reportSection" class="container hidden">
+        <div id="reports" class="grid-main">
+          <div class="card">
+            <div class="eyebrow">Builder Score</div>
+            <h2 id="identityText">AI + Cybersecurity Builder</h2>
+            <div class="score-row" style="margin-top:22px">
+              <div id="scoreRing" class="ring" style="--score:84%">
+                <div>
+                  <strong id="scoreValue">84</strong>
+                  <small>/100</small>
+                </div>
+              </div>
+              <div>
+                <div class="pill">Real project evidence</div><br>
+                <div class="pill">Skill signal analysis</div><br>
+                <div class="pill">Improvement plan</div>
+              </div>
+            </div>
+
+            <div class="profile">
+              <img id="avatarImg" class="avatar" src="https://github.com/BeBecpp.png" alt="GitHub avatar" />
+              <div>
+                <h3 id="profileName">@BeBecpp</h3>
+                <a id="profileLink" href="https://github.com/BeBecpp" target="_blank">Open GitHub profile</a>
+              </div>
+            </div>
+            <p id="summaryText" class="summary"></p>
+            <button id="exportBtn" class="export">Export Markdown Proof</button>
+          </div>
+
+          <div>
+            <div id="skill-map" class="charts">
+              <div class="card">
+                <div class="eyebrow">Skill Map</div>
+                <h2>Technical signal strength</h2>
+                <div id="skillBars" class="bars" style="margin-top:20px"></div>
+              </div>
+              <div class="card">
+                <div class="eyebrow">Radar View</div>
+                <h2>Developer shape</h2>
+                <div id="radarWrap" class="radar-wrap"></div>
+              </div>
+            </div>
+
+            <div class="list-grid">
+              <div class="card list-card"><h3>Strong Areas</h3><ul id="strongList"></ul></div>
+              <div class="card list-card"><h3>Weak Areas</h3><ul id="weakList"></ul></div>
+              <div class="card list-card"><h3>Suggested Roles</h3><ul id="roleList"></ul></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="repo-layout">
+          <div class="card">
+            <div class="eyebrow">Repo Analysis</div>
+            <h2>Evidence cards</h2>
+            <div id="repoGrid" class="repo-grid" style="margin-top:20px"></div>
+          </div>
+          <div class="card">
+            <div class="eyebrow">Top Repos</div>
+            <h2>Score distribution</h2>
+            <div id="repoScores" class="bars" style="margin-top:20px"></div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <footer class="footer">Built for SkillProof AI · Evidence beats claims.</footer>
+  </main>
+
+  <script>
+    const API_BASE =
+      (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+        ? 'http://127.0.0.1:8000'
+        : '';
+    const demoReport = {
+      id: "demo_local",
+      username: "BeBecpp",
+      avatar_url: "https://github.com/BeBecpp.png",
+      github_url: "https://github.com/BeBecpp",
+      builder_score: 84,
+      main_identity: "AI + Cybersecurity Builder",
+      skill_map: {
+        "AI / ML": 78,
+        "Cybersecurity": 86,
+        "Frontend": 70,
+        "Backend": 74,
+        "Data Science": 55,
+        "Documentation": 61,
+        "Deployment": 66,
+        "Project Complexity": 80,
+        "Consistency": 72
+      },
+      strong_areas: [
+        "Practical AI project building",
+        "Cybersecurity / CTF tooling",
+        "Backend API development"
+      ],
+      weak_areas: [
+        "Missing tests",
+        "Few deployed demos",
+        "Inconsistent README quality"
+      ],
+      suggested_roles: [
+        "Junior AI Builder",
+        "Cybersecurity / CTF Learner",
+        "MVP Developer"
+      ],
+      repos: [
+        { name: "Aura_Guide", project_type: "Assistive AI / Hardware", score: 88, evidence_flags: ["Arduino", "Bluetooth", "Voice warnings", "Mobile prototype"] },
+        { name: "SkillProof_AI", project_type: "AI Developer Proof Tool", score: 86, evidence_flags: ["FastAPI", "GitHub analysis", "Frontend dashboard"] },
+        { name: "Crypto-tool", project_type: "CTF Utility", score: 76, evidence_flags: ["Cybersecurity", "Python", "CTF helper"] },
+        { name: "CNN Image Classification", project_type: "AI / Computer Vision", score: 79, evidence_flags: ["PyTorch", "Kaggle", "Model training"] }
+      ],
+      ai_summary: "This developer shows hands-on project building based on public GitHub evidence, with a clear direction toward AI engineering, cybersecurity, and practical MVP delivery."
+    };
+    let currentReport = null;
+    const $ = id => document.getElementById(id);
+
+    window.addEventListener('load', () => {
+      document.body.classList.add('ready');
+      startMinimalCoverAnimation();
+      startCleanIntro();
+    });
+
+    function startCleanIntro() {
+      const intro = $('intro');
+      const canvas = $('introCanvas');
+      const ctx = canvas.getContext('2d');
+      const text = 'Welcome SkillProofAI!';
+
+      let w, h, dpr, cx, cy, fontSize, textWidth, textX, textY, ballR;
+      let leftX, rightX, textTop, textBottom;
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = window.innerWidth;
+        h = window.innerHeight;
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        cx = w / 2;
+        cy = h / 2;
+        fontSize = Math.max(34, Math.min(68, w * 0.050));
+        ballR = Math.max(18, Math.min(28, w * 0.0165));
+
+        ctx.font = `800 ${fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        textWidth = ctx.measureText(text).width;
+        textX = (w - textWidth) / 2;
+        textY = cy + fontSize * 0.34;
+        textTop = textY - fontSize * 1.05;
+        textBottom = textY + fontSize * 0.35;
+
+        const pad = ballR * 2.25;
+        rightX = textX + textWidth + pad;
+        leftX = textX - pad;
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+
+      const T = {
+        orbit: 1550,
+        settleRight: 720,
+        reveal: 2450,
+        hold: 650,
+        hide: 1950,
+        center: 620,
+        morph: 1100
+      };
+      const total = T.orbit + T.settleRight + T.reveal + T.hold + T.hide + T.center + T.morph;
+
+      const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const easeOut = t => 1 - Math.pow(1 - t, 3);
+      const lerp = (a, b, p) => a + (b - a) * p;
+
+      function clear() {
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      function drawBackgroundGlow(alpha) {
+        if (alpha <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.55);
+        g.addColorStop(0, 'rgba(255,255,255,0.09)');
+        g.addColorStop(0.36, 'rgba(255,255,255,0.022)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+      }
+
+      function drawBall(x, y, r, alpha = 1) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        const glow = ctx.createRadialGradient(x, y, r * 0.55, x, y, r * 2.7);
+        glow.addColorStop(0, 'rgba(255,255,255,0.34)');
+        glow.addColorStop(0.34, 'rgba(255,255,255,0.12)');
+        glow.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 2.75, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      function drawTextClip(left, right, alpha = 1, blur = 0) {
+        left = Math.max(textX - 2, Math.min(textX + textWidth + 2, left));
+        right = Math.max(textX - 2, Math.min(textX + textWidth + 2, right));
+        if (right <= left) return;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(left, textTop, right - left, textBottom - textTop);
+        ctx.clip();
+
+        ctx.globalAlpha = alpha;
+        ctx.font = `800 ${fontSize}px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = 'rgba(255,255,255,0.14)';
+        ctx.shadowBlur = 18;
+        if (blur > 0) ctx.filter = `blur(${blur}px)`;
+        ctx.fillText(text, textX, textY);
+        ctx.restore();
+      }
+
+      function drawFullText(alpha = 1, blur = 0) {
+        drawTextClip(textX - 2, textX + textWidth + 2, alpha, blur);
+      }
+
+      function drawUnderline(alpha, progress, fromRight = false) {
+        if (alpha <= 0 || progress <= 0) return;
+        const width = textWidth * Math.max(0, Math.min(1, progress));
+        const x = fromRight ? textX + textWidth - width : textX;
+        const y = textY + fontSize * 0.34;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const g = ctx.createLinearGradient(x, y, x + width, y);
+        g.addColorStop(0, 'rgba(255,255,255,0)');
+        g.addColorStop(0.5, 'rgba(255,255,255,0.36)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.roundRect(x, y, width, 2, 99);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawTrail(x, y, alpha) {
+        if (alpha <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.filter = 'blur(8px)';
+        const g = ctx.createLinearGradient(x - 120, y, x + 120, y);
+        g.addColorStop(0, 'rgba(255,255,255,0)');
+        g.addColorStop(0.5, 'rgba(255,255,255,0.15)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.roundRect(x - 120, y - 8, 240, 16, 99);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawMorph(x, y, progress) {
+        const r = ballR * (1 + 58 * progress);
+        ctx.save();
+        const g = ctx.createRadialGradient(x, y, ballR, x, y, r);
+        g.addColorStop(0, 'rgba(255,255,255,0.96)');
+        g.addColorStop(0.20, 'rgba(255,255,255,0.84)');
+        g.addColorStop(0.52, 'rgba(255,255,255,0.22)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      const startTime = performance.now();
+
+      function frame(now) {
+        const elapsed = now - startTime;
+        let t = elapsed;
+
+        clear();
+
+        let ballX = cx;
+        let ballY = cy;
+        let r = ballR;
+
+        if (t < T.orbit) {
+          const p = easeInOut(t / T.orbit);
+          const rx = Math.min(130, w * 0.10);
+          const ry = Math.min(78, h * 0.10);
+          const angle = -Math.PI * 1.10 + p * Math.PI * 1.55;
+          ballX = cx + Math.cos(angle) * rx;
+          ballY = cy + Math.sin(angle) * ry;
+          r = ballR * (0.70 + 0.30 * p);
+          drawBackgroundGlow(0.14 * p);
+          drawTrail(ballX, ballY, 0.06 * p);
+          drawBall(ballX, ballY, r, p < 0.12 ? p / 0.12 : 1);
+        } else if (t < T.orbit + T.settleRight) {
+          const p = easeOut((t - T.orbit) / T.settleRight);
+          const rx = Math.min(130, w * 0.10);
+          const ry = Math.min(78, h * 0.10);
+          const angle = -Math.PI * 1.10 + Math.PI * 1.55;
+          const fromX = cx + Math.cos(angle) * rx;
+          const fromY = cy + Math.sin(angle) * ry;
+          ballX = lerp(fromX, rightX, p);
+          ballY = lerp(fromY, cy, p);
+          drawBackgroundGlow(0.13);
+          drawTrail(ballX, ballY, 0.08);
+          drawBall(ballX, ballY, ballR, 1);
+        } else if (t < T.orbit + T.settleRight + T.reveal) {
+          const p = easeInOut((t - T.orbit - T.settleRight) / T.reveal);
+          ballX = lerp(rightX, leftX, p);
+          ballY = cy;
+
+          // RIGHT -> LEFT reveal. Text is visible only behind the ball.
+          // This makes the letters appear exactly after the ball passes.
+          const visibleLeft = ballX + ballR * 0.92;
+          drawBackgroundGlow(0.12);
+          drawTextClip(visibleLeft, textX + textWidth + 2, 1, 0);
+          drawUnderline(0.38, p, true);
+          drawTrail(ballX, ballY, 0.11);
+          drawBall(ballX, ballY, ballR, 1);
+        } else if (t < T.orbit + T.settleRight + T.reveal + T.hold) {
+          const p = (t - T.orbit - T.settleRight - T.reveal) / T.hold;
+          ballX = leftX;
+          ballY = cy + Math.sin(p * Math.PI * 2) * -2;
+          drawBackgroundGlow(0.11);
+          drawFullText(1, 0);
+          drawUnderline(0.42, 1, false);
+          drawBall(ballX, ballY, ballR, 1);
+        } else if (t < T.orbit + T.settleRight + T.reveal + T.hold + T.hide) {
+          const p = easeInOut((t - T.orbit - T.settleRight - T.reveal - T.hold) / T.hide);
+          ballX = lerp(leftX, rightX, p);
+          ballY = cy;
+
+          // LEFT -> RIGHT hide. Text remains only ahead of the ball.
+          // The disappearance follows the same direction as the ball.
+          const visibleLeft = ballX + ballR * 0.78;
+          const fade = 1 - Math.max(0, p - 0.82) / 0.18;
+          drawBackgroundGlow(0.10 * Math.max(0, fade));
+          drawTextClip(visibleLeft, textX + textWidth + 2, Math.max(0, fade), p * 1.5);
+          drawUnderline(0.34 * Math.max(0, fade), 1 - p * 0.2, false);
+          drawTrail(ballX, ballY, 0.10);
+          drawBall(ballX, ballY, ballR, 1);
+        } else if (t < T.orbit + T.settleRight + T.reveal + T.hold + T.hide + T.center) {
+          const p = easeInOut((t - T.orbit - T.settleRight - T.reveal - T.hold - T.hide) / T.center);
+          ballX = lerp(rightX, cx, p);
+          ballY = cy;
+          drawBall(ballX, ballY, ballR * (1 + p * 0.10), 1);
+        } else if (t < total) {
+          const p = easeInOut((t - T.orbit - T.settleRight - T.reveal - T.hold - T.hide - T.center) / T.morph);
+          drawMorph(cx, cy, p);
+          drawBall(cx, cy, ballR * (1 + 0.16 * (1 - p)), 1 - p * 0.55);
+
+          if (p > 0.52) {
+            canvas.style.opacity = String(Math.max(0, 1 - (p - 0.52) / 0.48));
+          }
+        } else {
+          intro.classList.add('hide');
+          document.body.classList.remove('lock');
+          return;
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+
+      setTimeout(() => {
+        intro.classList.add('hide');
+        document.body.classList.remove('lock');
+      }, total + 900);
+    }
+
+    function startMinimalCoverAnimation() {
+      const canvas = $('coverCanvas');
+      const ctx = canvas.getContext('2d');
+      let w, h, dots;
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = canvas.clientWidth;
+        h = canvas.clientHeight;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const count = w < 700 ? 38 : 70;
+        dots = Array.from({ length: count }, () => ({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - .5) * .22,
+          vy: (Math.random() - .5) * .22,
+          r: 1.5 + Math.random() * 2.8
+        }));
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, w, h);
+
+        dots.forEach((a, i) => {
+          a.x += a.vx;
+          a.y += a.vy;
+          if (a.x < -20) a.x = w + 20;
+          if (a.x > w + 20) a.x = -20;
+          if (a.y < -20) a.y = h + 20;
+          if (a.y > h + 20) a.y = -20;
+
+          ctx.beginPath();
+          ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
+          ctx.fillStyle = i % 5 === 0 ? 'rgba(9,105,218,.24)' : 'rgba(45,164,78,.22)';
+          ctx.fill();
+
+          for (let j = i + 1; j < dots.length; j++) {
+            const b = dots[j];
+            const dx = a.x - b.x, dy = a.y - b.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < 120) {
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.strokeStyle = 'rgba(17,17,17,' + (0.055 * (1 - d / 120)) + ')';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          }
+        });
+
+        requestAnimationFrame(draw);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+      draw();
+    }
+
+    $('analyzeBtn').onclick = analyze;
+    $('demoBtn').onclick = loadDemo;
+    $('loadDemoLarge').onclick = loadDemo;
+    $('exportBtn').onclick = exportMarkdown;
+    $('usernameInput').addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
+
+    function showError(message) {
+      $('errorBox').textContent = message;
+      $('errorBox').classList.add('show');
+    }
+    function clearError() {
+      $('errorBox').textContent = '';
+      $('errorBox').classList.remove('show');
+    }
+
+    async function analyze() {
+      const username = $('usernameInput').value.trim().replace(/^@/, '');
+      if (!username) { showError('GitHub username оруул.'); return; }
+
+      clearError();
+      $('analyzeBtn').textContent = 'Analyzing...';
+
+      try {
+        const res = await fetch(API_BASE + '/analyze/github', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        if (!res.ok) throw new Error('Backend offline');
+        renderReport(normalize(await res.json(), username));
+      } catch {
+        showError('Backend ажиллаагүй байна. Frontend хэвийн — fallback/demo report ачааллаа.');
+        renderReport({ ...demoReport, username, avatar_url: 'https://github.com/' + username + '.png', github_url: 'https://github.com/' + username });
+      } finally {
+        $('analyzeBtn').textContent = 'Analyze';
+      }
+    }
+
+    async function loadDemo() {
+      clearError();
+      try {
+        const res = await fetch(API_BASE + '/demo/report');
+        if (!res.ok) throw new Error('Demo offline');
+        renderReport(normalize(await res.json(), 'BeBecpp'));
+      } catch {
+        renderReport(demoReport);
+      }
+    }
+
+    function normalize(r, username) {
+      return {
+        ...demoReport,
+        ...r,
+        username: r.username || username,
+        avatar_url: r.avatar_url || 'https://github.com/' + (r.username || username) + '.png',
+        github_url: r.github_url || 'https://github.com/' + (r.username || username),
+        skill_map: r.skill_map || demoReport.skill_map,
+        repos: r.repos || demoReport.repos,
+        strong_areas: r.strong_areas || demoReport.strong_areas,
+        weak_areas: r.weak_areas || demoReport.weak_areas,
+        suggested_roles: r.suggested_roles || demoReport.suggested_roles,
+        ai_summary: r.ai_summary || demoReport.ai_summary
+      };
+    }
+
+    function renderReport(r) {
+      currentReport = r;
+      $('emptySection').classList.add('hidden');
+      $('reportSection').classList.remove('hidden');
+
+      const score = Math.max(0, Math.min(100, Number(r.builder_score || 0)));
+      $('identityText').textContent = r.main_identity || 'Developer Builder';
+      $('scoreValue').textContent = Math.round(score);
+      $('scoreRing').style.setProperty('--score', score + '%');
+      $('avatarImg').src = r.avatar_url;
+      $('profileName').textContent = '@' + r.username;
+      $('profileLink').href = r.github_url;
+      $('summaryText').textContent = r.ai_summary || '';
+
+      renderBars(r.skill_map || {});
+      renderRadar(r.skill_map || {});
+      renderList('strongList', r.strong_areas || []);
+      renderList('weakList', r.weak_areas || []);
+      renderList('roleList', r.suggested_roles || []);
+      renderRepos(r.repos || []);
+
+      setTimeout(() => $('reportSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 70);
+    }
+
+    function renderBars(map) {
+      $('skillBars').innerHTML = Object.entries(map).map(([name, value]) => {
+        const v = Math.max(0, Math.min(100, Number(value) || 0));
+        return `<div class="skill"><span>${escapeHtml(name)}</span><div class="skill-track"><div class="skill-fill" style="--w:${v}%"></div></div><b>${v}</b></div>`;
+      }).join('');
+    }
+
+    function renderRadar(map) {
+      const entries = Object.entries(map).slice(0, 9);
+      const cx = 175, cy = 160, R = 108, n = entries.length || 1;
+      const p = (i, r) => {
+        const a = -Math.PI / 2 + 2 * Math.PI * i / n;
+        return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
+      };
+      const grids = [.25,.5,.75,1].map(level => `<polygon class="radar-grid" points="${entries.map((_,i) => { const q = p(i, R * level); return q.x + ',' + q.y; }).join(' ')}"></polygon>`).join('');
+      const axes = entries.map((_, i) => { const q = p(i, R); return `<line x1="${cx}" y1="${cy}" x2="${q.x}" y2="${q.y}" stroke="rgba(17,17,17,.12)"/>`; }).join('');
+      const shape = entries.map(([_, v], i) => { const q = p(i, R * (Number(v) || 0) / 100); return q.x + ',' + q.y; }).join(' ');
+      const labels = entries.map(([name], i) => {
+        const q = p(i, R + 34);
+        const anchor = q.x < cx - 10 ? 'end' : q.x > cx + 10 ? 'start' : 'middle';
+        return `<text class="radar-label" x="${q.x}" y="${q.y}" text-anchor="${anchor}" dominant-baseline="middle">${escapeHtml(short(name, 13))}</text>`;
+      }).join('');
+      $('radarWrap').innerHTML = `<svg class="radar-svg" viewBox="0 0 350 325">${grids}${axes}<polygon class="radar-shape" points="${shape}"></polygon><circle cx="${cx}" cy="${cy}" r="3" fill="#111"></circle>${labels}</svg>`;
+    }
+
+    function renderList(id, items) {
+      $(id).innerHTML = items.map(x => `<li>${escapeHtml(x)}</li>`).join('');
+    }
+
+    function renderRepos(repos) {
+      repos = repos.length ? repos : demoReport.repos;
+      $('repoGrid').innerHTML = repos.slice(0, 4).map(repo => `
+        <div class="repo">
+          <div class="repo-top">
+            <div><h4>${escapeHtml(repo.name || 'Repository')}</h4><p>${escapeHtml(repo.project_type || 'Project evidence')}</p></div>
+            <div class="badge">${Math.round(repo.score || repo.repo_score || 70)}</div>
+          </div>
+          <div class="flags">${(repo.evidence_flags || repo.flags || []).slice(0,4).map(f => `<span class="flag">${escapeHtml(f)}</span>`).join('')}</div>
+        </div>
+      `).join('');
+
+      $('repoScores').innerHTML = repos.slice(0, 6).map(repo => {
+        const score = Math.max(0, Math.min(100, Number(repo.score || repo.repo_score || 70)));
+        return `<div><div class="skill" style="grid-template-columns:1fr 40px"><span>${escapeHtml(short(repo.name || 'Repository', 28))}</span><b>${Math.round(score)}</b></div><div class="skill-track"><div class="skill-fill" style="--w:${score}%"></div></div></div>`;
+      }).join('');
+    }
+
+    function exportMarkdown() {
+      const r = currentReport || demoReport;
+      const skills = Object.entries(r.skill_map || {}).map(([k, v]) => `- ${k}: ${v}/100`).join('\n');
+      const text = `# SkillProof AI Report: ${r.username}\n\n## Builder Score\n${r.builder_score}/100\n\n## Main Identity\n${r.main_identity}\n\n## Skill Map\n${skills}\n\n## Strong Areas\n${(r.strong_areas || []).map(x => '- ' + x).join('\n')}\n\n## Weak Areas\n${(r.weak_areas || []).map(x => '- ' + x).join('\n')}\n\n## Suggested Roles\n${(r.suggested_roles || []).map(x => '- ' + x).join('\n')}\n\n## Summary\n${r.ai_summary || ''}\n`;
+      const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'skillproof-' + (r.username || 'demo') + '.md';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(v) {
+      return String(v)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+    function short(t, max) {
+      t = String(t);
+      return t.length > max ? t.slice(0, max - 1) + '…' : t;
+    }
+  </script>
+</body>
 </html>
