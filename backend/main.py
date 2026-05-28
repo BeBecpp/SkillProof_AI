@@ -43,6 +43,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://bebecpp.github.io",
     ],
     allow_credentials=True,
     allow_methods=["*"],
