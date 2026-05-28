@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: skillproof-ai-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: AI_PROVIDER
+        value: auto
+      - key: MAX_REPOS
+        value: 5
+      - key: FETCH_IMPORTANT_FILES
+        value: false
+      - key: CORS_ALLOW_ORIGINS
+        value: https://bebecpp.github.io
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.2
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash

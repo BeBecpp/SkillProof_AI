@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from ai_report import generate_ai_report
 from database import get_history, get_report, init_db, save_report
 from models import (
@@ -36,13 +40,37 @@ load_dotenv()
 
 app = FastAPI(title="SkillProof AI API", version="0.1.0")
 
+def _get_cors_allow_origins() -> list[str]:
+    raw = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+    if not raw:
+        # Dev-friendly default. For production, set CORS_ALLOW_ORIGINS explicitly.
+        return ["*"]
+    origins: list[str] = []
+    for item in raw.split(","):
+        value = item.strip().rstrip("/")
+        if not value:
+            continue
+        parsed = urlparse(value)
+        if parsed.scheme and parsed.netloc:
+            origins.append(f"{parsed.scheme}://{parsed.netloc}")
+        else:
+            origins.append(value)
+    return list(dict.fromkeys(origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_get_cors_allow_origins(),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+BACKEND_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = (BACKEND_DIR / ".." / "frontend").resolve()
+FRONTEND_INDEX = FRONTEND_DIR / "index.html"
+
+if FRONTEND_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR), html=False), name="assets")
 
 
 @app.on_event("startup")
@@ -444,12 +472,15 @@ def report_to_markdown(report: ReportResponse) -> str:
 
 
 @app.get("/")
-def root() -> dict[str, str]:
-    return {
-        "name": "SkillProof AI API",
-        "status": "running",
-        "version": "0.1.0",
-    }
+def root() -> FileResponse:
+    if not FRONTEND_INDEX.exists():
+        raise HTTPException(status_code=404, detail="Frontend index.html not found")
+    return FileResponse(str(FRONTEND_INDEX))
+
+
+@app.get("/api")
+def api_root() -> dict[str, str]:
+    return {"name": "SkillProof AI API", "status": "running", "version": "0.1.0"}
 
 
 @app.get("/health")
@@ -487,6 +518,7 @@ def report_markdown(report_id: str) -> PlainTextResponse:
 
 @app.get("/demo/report", response_model=ReportResponse)
 def demo_report() -> ReportResponse:
-    report = build_report("SkillProofDemo")
+    # Deterministic demo report (no external GitHub dependency).
+    report = build_report("SkillProofDemo", raw_repos=_mock_repos("SkillProofDemo"))
     save_report(report)
     return report

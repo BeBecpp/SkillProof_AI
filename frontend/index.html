@@ -260,6 +260,11 @@
       color: #111;
     }
     .btn:hover, .btn2:hover { transform: translateY(-2px); }
+    .btn:disabled, .btn2:disabled {
+      opacity: .68;
+      cursor: wait;
+      transform: none;
+    }
 
     .preview {
       position: relative;
@@ -553,7 +558,7 @@
     }
     .list-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 18px;
       margin-top: 18px;
     }
@@ -759,7 +764,7 @@
       <section id="emptySection" class="container">
         <div class="card">
           <h2 style="font-size:38px;margin:0;letter-spacing:-.05em">Run a scan to generate the full dashboard.</h2>
-          <p class="summary">Click Analyze or Demo. Backend is optional; if it is offline, demo/fallback data still renders.</p>
+          <p class="summary">Click Analyze or Demo. The deployed frontend is wired to the backend API, with demo fallback only if the service is waking up.</p>
           <button id="loadDemoLarge" class="export" style="max-width:260px">Load demo report →</button>
         </div>
       </section>
@@ -812,6 +817,7 @@
               <div class="card list-card"><h3>Strong Areas</h3><ul id="strongList"></ul></div>
               <div class="card list-card"><h3>Weak Areas</h3><ul id="weakList"></ul></div>
               <div class="card list-card"><h3>Suggested Roles</h3><ul id="roleList"></ul></div>
+              <div class="card list-card"><h3>Improvement Plan</h3><ul id="planList"></ul></div>
             </div>
           </div>
         </div>
@@ -835,10 +841,37 @@
   </main>
 
   <script>
-    const API_BASE =
-      (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
-        ? 'http://127.0.0.1:8000'
-        : '';
+    const DEPLOYED_API_BASE = 'https://skillproof-ai-9u61.onrender.com';
+    const API_BASE = resolveApiBase();
+
+    function resolveApiBase() {
+      const host = location.hostname;
+      const params = new URLSearchParams(location.search);
+      const fromQuery = params.get('api') || params.get('api_base');
+
+      if (fromQuery) {
+        const cleaned = cleanApiBase(fromQuery);
+        try { localStorage.setItem('skillproof_api_base', cleaned); } catch {}
+        return cleaned;
+      }
+
+      try {
+        const saved = localStorage.getItem('skillproof_api_base');
+        if (saved) return cleanApiBase(saved);
+      } catch {}
+
+      if (host === '127.0.0.1' || host === 'localhost') return 'http://127.0.0.1:8000';
+      if (host.endsWith('onrender.com')) return '';
+      return DEPLOYED_API_BASE;
+    }
+
+    function cleanApiBase(value) {
+      return String(value || '').trim().replace(/\/+$/, '');
+    }
+
+    function apiUrl(path) {
+      return `${API_BASE}${path}`;
+    }
     const demoReport = {
       id: "demo_local",
       username: "BeBecpp",
@@ -878,7 +911,15 @@
         { name: "Crypto-tool", project_type: "CTF Utility", score: 76, evidence_flags: ["Cybersecurity", "Python", "CTF helper"] },
         { name: "CNN Image Classification", project_type: "AI / Computer Vision", score: 79, evidence_flags: ["PyTorch", "Kaggle", "Model training"] }
       ],
-      ai_summary: "This developer shows hands-on project building based on public GitHub evidence, with a clear direction toward AI engineering, cybersecurity, and practical MVP delivery."
+      ai_summary: "This developer shows hands-on project building based on public GitHub evidence, with a clear direction toward AI engineering, cybersecurity, and practical MVP delivery.",
+      improvement_plan: [
+        "Keep the deployed backend awake during demos.",
+        "Add setup, screenshots, and architecture notes to flagship repos.",
+        "Publish one live demo link per strongest project.",
+        "Add tests or CI workflows to show quality discipline.",
+        "Pin the best 3 repositories on GitHub.",
+        "Export this report into the profile README."
+      ]
     };
     let currentReport = null;
     const $ = id => document.getElementById(id);
@@ -1233,37 +1274,68 @@
       $('errorBox').classList.remove('show');
     }
 
+    async function fetchJson(path, options = {}, timeoutMs = 75000) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(apiUrl(path), { ...options, signal: controller.signal });
+        const text = await res.text();
+        const payload = text ? JSON.parse(text) : null;
+        if (!res.ok) {
+          throw new Error(payload?.detail || text || `Request failed with ${res.status}`);
+        }
+        return payload;
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Backend wake-up timed out');
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
     async function analyze() {
       const username = $('usernameInput').value.trim().replace(/^@/, '');
       if (!username) { showError('GitHub username оруул.'); return; }
 
       clearError();
       $('analyzeBtn').textContent = 'Analyzing...';
+      $('analyzeBtn').disabled = true;
+      $('demoBtn').disabled = true;
 
       try {
-        const res = await fetch(API_BASE + '/analyze/github', {
+        const report = await fetchJson('/analyze/github', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username })
         });
-        if (!res.ok) throw new Error('Backend offline');
-        renderReport(normalize(await res.json(), username));
-      } catch {
-        showError('Backend ажиллаагүй байна. Frontend хэвийн — fallback/demo report ачааллаа.');
+        renderReport(normalize(report, username));
+      } catch (error) {
+        showError(`Backend түр хариу өгсөнгүй (${error.message}). Frontend fallback/demo report ачааллаа.`);
         renderReport({ ...demoReport, username, avatar_url: 'https://github.com/' + username + '.png', github_url: 'https://github.com/' + username });
       } finally {
         $('analyzeBtn').textContent = 'Analyze';
+        $('analyzeBtn').disabled = false;
+        $('demoBtn').disabled = false;
       }
     }
 
     async function loadDemo() {
       clearError();
+      $('demoBtn').textContent = 'Loading...';
+      $('analyzeBtn').disabled = true;
+      $('demoBtn').disabled = true;
       try {
-        const res = await fetch(API_BASE + '/demo/report');
-        if (!res.ok) throw new Error('Demo offline');
-        renderReport(normalize(await res.json(), 'BeBecpp'));
-      } catch {
+        const report = await fetchJson('/demo/report', {}, 75000);
+        renderReport(normalize(report, 'BeBecpp'));
+      } catch (error) {
+        showError(`Demo backend түр хариу өгсөнгүй (${error.message}). Local demo report харууллаа.`);
         renderReport(demoReport);
+      } finally {
+        $('demoBtn').textContent = 'Demo';
+        $('analyzeBtn').disabled = false;
+        $('demoBtn').disabled = false;
       }
     }
 
@@ -1279,7 +1351,8 @@
         strong_areas: r.strong_areas || demoReport.strong_areas,
         weak_areas: r.weak_areas || demoReport.weak_areas,
         suggested_roles: r.suggested_roles || demoReport.suggested_roles,
-        ai_summary: r.ai_summary || demoReport.ai_summary
+        ai_summary: r.ai_summary || demoReport.ai_summary,
+        improvement_plan: r.improvement_plan || demoReport.improvement_plan || []
       };
     }
 
@@ -1302,6 +1375,7 @@
       renderList('strongList', r.strong_areas || []);
       renderList('weakList', r.weak_areas || []);
       renderList('roleList', r.suggested_roles || []);
+      renderList('planList', r.improvement_plan || []);
       renderRepos(r.repos || []);
 
       setTimeout(() => $('reportSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 70);
@@ -1333,7 +1407,29 @@
     }
 
     function renderList(id, items) {
-      $(id).innerHTML = items.map(x => `<li>${escapeHtml(x)}</li>`).join('');
+      $(id).innerHTML = (items?.length ? items : ['No signal yet']).map(x => `<li>${escapeHtml(x)}</li>`).join('');
+    }
+
+    function repoType(repo) {
+      if (repo.project_type) return repo.project_type;
+      if (Array.isArray(repo.project_types) && repo.project_types.length) return repo.project_types.join(' / ');
+      return repo.language || 'Project evidence';
+    }
+
+    function repoFlags(repo) {
+      const flags = [
+        ...(repo.evidence_flags || []),
+        ...(repo.flags || []),
+        ...(repo.project_types || []),
+      ];
+      if (repo.has_readme) flags.push('README');
+      if (repo.has_backend) flags.push('Backend');
+      if (repo.has_frontend) flags.push('Frontend');
+      if (repo.has_ai) flags.push('AI');
+      if (repo.has_security) flags.push('Security');
+      if (repo.has_live_demo) flags.push('Live demo');
+      if (repo.has_tests) flags.push('Tests');
+      return [...new Set(flags.filter(Boolean))].slice(0, 5);
     }
 
     function renderRepos(repos) {
@@ -1341,10 +1437,10 @@
       $('repoGrid').innerHTML = repos.slice(0, 4).map(repo => `
         <div class="repo">
           <div class="repo-top">
-            <div><h4>${escapeHtml(repo.name || 'Repository')}</h4><p>${escapeHtml(repo.project_type || 'Project evidence')}</p></div>
+            <div><h4>${escapeHtml(repo.name || 'Repository')}</h4><p>${escapeHtml(repoType(repo))}</p></div>
             <div class="badge">${Math.round(repo.score || repo.repo_score || 70)}</div>
           </div>
-          <div class="flags">${(repo.evidence_flags || repo.flags || []).slice(0,4).map(f => `<span class="flag">${escapeHtml(f)}</span>`).join('')}</div>
+          <div class="flags">${repoFlags(repo).map(f => `<span class="flag">${escapeHtml(f)}</span>`).join('')}</div>
         </div>
       `).join('');
 
@@ -1357,7 +1453,9 @@
     function exportMarkdown() {
       const r = currentReport || demoReport;
       const skills = Object.entries(r.skill_map || {}).map(([k, v]) => `- ${k}: ${v}/100`).join('\n');
-      const text = `# SkillProof AI Report: ${r.username}\n\n## Builder Score\n${r.builder_score}/100\n\n## Main Identity\n${r.main_identity}\n\n## Skill Map\n${skills}\n\n## Strong Areas\n${(r.strong_areas || []).map(x => '- ' + x).join('\n')}\n\n## Weak Areas\n${(r.weak_areas || []).map(x => '- ' + x).join('\n')}\n\n## Suggested Roles\n${(r.suggested_roles || []).map(x => '- ' + x).join('\n')}\n\n## Summary\n${r.ai_summary || ''}\n`;
+      const repos = (r.repos || []).map(repo => `- ${repo.name || 'Repository'}: ${Math.round(repo.score || repo.repo_score || 0)}/100 (${repoType(repo)})`).join('\n');
+      const plan = (r.improvement_plan || []).map((x, i) => `${i + 1}. ${x}`).join('\n');
+      const text = `# SkillProof AI Report: ${r.username}\n\n## Builder Score\n${r.builder_score}/100\n\n## Main Identity\n${r.main_identity}\n\n## Skill Map\n${skills}\n\n## Strong Areas\n${(r.strong_areas || []).map(x => '- ' + x).join('\n')}\n\n## Weak Areas\n${(r.weak_areas || []).map(x => '- ' + x).join('\n')}\n\n## Suggested Roles\n${(r.suggested_roles || []).map(x => '- ' + x).join('\n')}\n\n## Repository Evidence\n${repos}\n\n## Summary\n${r.ai_summary || ''}\n\n## 30-Day Improvement Plan\n${plan}\n`;
       const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

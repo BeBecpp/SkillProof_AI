@@ -1,8 +1,18 @@
 # SkillProof AI — API Specification (MVP v0.1.0)
 
-Base URL: `http://127.0.0.1:8000`
+Local base URL: `http://127.0.0.1:8000`
+
+Production backend: `https://skillproof-ai-9u61.onrender.com`
 
 ## GET /
+
+**Response 200**
+
+Serves the static frontend `index.html` when the backend is running from the repo.
+
+---
+
+## GET /api
 
 **Response 200**
 

@@ -9,9 +9,21 @@ import urllib.request
 from typing import Any
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-DEFAULT_OPENAI_MODEL = "gpt-5.1"
+DEFAULT_OPENAI_MODEL = "gpt-5.2"
 GEMINI_GENERATE_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+AI_REPORT_JSON_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "ai_summary": {"type": "string"},
+        "improvement_plan": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+    },
+    "required": ["ai_summary", "improvement_plan"],
+}
 
 
 def generate_fallback_summary(report_data: dict[str, Any]) -> str:
@@ -200,6 +212,15 @@ def _generate_openai_report(report_data: dict[str, Any]) -> dict[str, Any] | Non
             "You write clear, evidence-based portfolio feedback."
         ),
         "input": json.dumps(prompt, ensure_ascii=False),
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "skillproof_ai_report",
+                "strict": True,
+                "schema": AI_REPORT_JSON_SCHEMA,
+            },
+            "verbosity": "medium",
+        },
         "max_output_tokens": 900,
     }
     request = urllib.request.Request(
@@ -320,13 +341,13 @@ def _generate_gemini_report(report_data: dict[str, Any]) -> dict[str, Any] | Non
 
 
 def generate_ai_report(report_data: dict[str, Any]) -> dict[str, Any]:
-    gemini_report = _generate_gemini_report(report_data)
-    if gemini_report:
-        return gemini_report
-
     openai_report = _generate_openai_report(report_data)
     if openai_report:
         return openai_report
+
+    gemini_report = _generate_gemini_report(report_data)
+    if gemini_report:
+        return gemini_report
 
     return {
         "ai_summary": generate_fallback_summary(report_data),

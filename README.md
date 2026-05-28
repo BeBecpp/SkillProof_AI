@@ -599,10 +599,16 @@ Environment variables:
 
 ```env
 GITHUB_TOKEN=
-AI_PROVIDER=
+AI_PROVIDER=auto
 OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.2
 GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+CORS_ALLOW_ORIGINS=https://bebecpp.github.io
 ```
+
+This repo also includes `render.yaml`, so Render can create the backend service with the same build/start commands and `/health` check.
+Use only the origin for CORS, for example `https://bebecpp.github.io`, not the `/SkillProof_AI/` path.
 
 ---
 
@@ -617,8 +623,11 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 For deployed backend:
 
 ```env
-VITE_API_BASE_URL=https://your-render-service.onrender.com
+VITE_API_BASE_URL=https://skillproof-ai-9u61.onrender.com
 ```
+
+The static GitHub Pages frontend defaults to `https://skillproof-ai-9u61.onrender.com`.
+For local testing it uses `http://127.0.0.1:8000`, and you can override the deployed backend with `?api=https://your-render-service.onrender.com`.
 
 Example frontend request:
 

@@ -13,8 +13,32 @@ import {
   Sparkles,
 } from "https://esm.sh/lucide-react@0.468.0?deps=react@18.3.1";
 
-const API_BASE = localStorage.getItem("skillproof_api_base") || "https://skillproof-ai-9u61.onrender.com";
-const USE_BROWSER_SCANNER_FIRST = location.hostname.endsWith("github.io") && !localStorage.getItem("skillproof_api_base");
+const DEPLOYED_API_BASE = "https://skillproof-ai-9u61.onrender.com";
+
+function cleanApiBase(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function resolveApiBase() {
+  const params = new URLSearchParams(location.search);
+  const fromQuery = params.get("api") || params.get("api_base");
+  if (fromQuery) {
+    const cleaned = cleanApiBase(fromQuery);
+    try {
+      localStorage.setItem("skillproof_api_base", cleaned);
+    } catch {}
+    return cleaned;
+  }
+  try {
+    const saved = localStorage.getItem("skillproof_api_base");
+    if (saved) return cleanApiBase(saved);
+  } catch {}
+  if (location.hostname === "127.0.0.1" || location.hostname === "localhost") return "http://127.0.0.1:8000";
+  if (location.hostname.endsWith("onrender.com")) return "";
+  return DEPLOYED_API_BASE;
+}
+
+const API_BASE = resolveApiBase();
 const e = React.createElement;
 
 const SKILL_KEYS = [
@@ -31,6 +55,10 @@ const SKILL_KEYS = [
 
 function cx(...parts) {
   return parts.filter(Boolean).join(" ");
+}
+
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
 }
 
 function clamp(value) {
@@ -633,13 +661,7 @@ function App() {
     setError("");
     setStatus("Scanning repositories and generating the AI report...");
   try {
-      if (USE_BROWSER_SCANNER_FIRST) {
-        const browserReport = await analyzeInBrowser(clean);
-        setReport(browserReport);
-        setStatus(`Live browser scan complete. Scanned ${browserReport.repos.length} repositories.`);
-        return;
-      }
-      const response = await fetch(`${API_BASE}/analyze/github`, {
+      const response = await fetch(apiUrl("/analyze/github"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: clean }),
@@ -682,7 +704,7 @@ function App() {
       URL.revokeObjectURL(url);
       return;
     }
-    window.open(`${API_BASE}/report/${report.id}/markdown`, "_blank", "noreferrer");
+    window.open(apiUrl(`/report/${report.id}/markdown`), "_blank", "noreferrer");
   }
 
   return e(
