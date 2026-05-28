@@ -1,4 +1,4 @@
-const API_BASE = localStorage.getItem("skillproof_api_base") || "http://127.0.0.1:8000";
+const API_BASE = localStorage.getItem("skillproof_api_base") || "https://skillproof-ai-9u61.onrender.com";
 
 const form = document.querySelector("#analyze-form");
 const usernameInput = document.querySelector("#username");
