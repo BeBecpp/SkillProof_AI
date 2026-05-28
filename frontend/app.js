@@ -14,6 +14,7 @@ import {
 } from "https://esm.sh/lucide-react@0.468.0?deps=react@18.3.1";
 
 const API_BASE = localStorage.getItem("skillproof_api_base") || "https://skillproof-ai-9u61.onrender.com";
+const USE_BROWSER_SCANNER_FIRST = location.hostname.endsWith("github.io") && !localStorage.getItem("skillproof_api_base");
 const e = React.createElement;
 
 const SKILL_KEYS = [
@@ -477,6 +478,12 @@ function App() {
     setError("");
     setStatus("Scanning repositories and generating the AI report...");
     try {
+      if (USE_BROWSER_SCANNER_FIRST) {
+        const browserReport = await analyzeInBrowser(clean);
+        setReport(browserReport);
+        setStatus(`Live browser scan complete. Scanned ${browserReport.repos.length} repositories.`);
+        return;
+      }
       const response = await fetch(`${API_BASE}/analyze/github`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
