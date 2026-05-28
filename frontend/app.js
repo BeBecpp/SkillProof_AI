@@ -16,8 +16,218 @@ import {
 const API_BASE = localStorage.getItem("skillproof_api_base") || "https://skillproof-ai-9u61.onrender.com";
 const e = React.createElement;
 
+const SKILL_KEYS = [
+  "AI / ML",
+  "Cybersecurity",
+  "Frontend",
+  "Backend",
+  "Data Science",
+  "Documentation",
+  "Deployment",
+  "Project Complexity",
+  "Consistency",
+];
+
 function cx(...parts) {
   return parts.filter(Boolean).join(" ");
+}
+
+function clamp(value) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function includesAny(text, words) {
+  const lower = text.toLowerCase();
+  return words.some((word) => lower.includes(word));
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
+  if (!response.ok) throw new Error(`GitHub request failed: ${response.status}`);
+  return response.json();
+}
+
+async function fetchReadme(owner, repo) {
+  try {
+    const data = await fetchJson(`https://api.github.com/repos/${owner}/${repo}/readme`);
+    if (!data.content) return "";
+    return atob(data.content.replace(/\n/g, ""));
+  } catch {
+    return "";
+  }
+}
+
+async function fetchTree(owner, repo, branch) {
+  try {
+    const data = await fetchJson(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
+    return (data.tree || []).filter((item) => item.type === "blob").map((item) => item.path).slice(0, 350);
+  } catch {
+    return [];
+  }
+}
+
+function scanRepo(repo, paths, readme) {
+  const lowerPaths = paths.map((path) => path.toLowerCase());
+  const blob = [
+    repo.name,
+    repo.description || "",
+    repo.language || "",
+    ...(repo.topics || []),
+    readme.slice(0, 5000),
+    lowerPaths.join(" "),
+  ].join(" ");
+  const hasPackage = lowerPaths.includes("package.json");
+  const hasPythonDeps = lowerPaths.includes("requirements.txt") || lowerPaths.includes("pyproject.toml");
+  const hasReadme = readme.trim().length > 0;
+  const hasAi = includesAny(blob, ["ai", "ml", "model", "dataset", "training", "inference", "sklearn", "torch", "tensorflow", "llm", "rag", "embedding"]) || lowerPaths.some((path) => path.endsWith(".ipynb"));
+  const hasSecurity = includesAny(blob, ["security", "cyber", "ctf", "crypto", "pwn", "forensics", "exploit", "scanner", "vulnerability", "audit", "writeup"]);
+  const hasFrontend = hasPackage || includesAny(blob, ["react", "vite", "next", "vue", "tailwind", "component", "responsive"]) || lowerPaths.some((path) => path.endsWith(".html") || path.endsWith(".css") || path.endsWith(".jsx") || path.endsWith(".tsx"));
+  const hasBackend = hasPythonDeps || includesAny(blob, ["fastapi", "flask", "django", "express", "api", "endpoint", "server", "database"]);
+  const hasTests = lowerPaths.some((path) => path.startsWith("tests/") || path.includes("/tests/") || path.startsWith(".github/workflows/"));
+  const hasDocker = lowerPaths.includes("dockerfile") || lowerPaths.includes("docker-compose.yml");
+  const hasLiveDemo = Boolean(repo.homepage) || includesAny(readme, ["vercel.app", "netlify.app", "github.io", "render.com", "railway.app"]);
+  const recentlyUpdated = repo.updated_at ? (Date.now() - new Date(repo.updated_at).getTime()) / 86400000 <= 180 : false;
+  const projectTypes = [];
+  if (hasAi) projectTypes.push("AI / ML");
+  if (hasSecurity) projectTypes.push("Cybersecurity");
+  if (hasFrontend) projectTypes.push("Frontend");
+  if (hasBackend) projectTypes.push("Backend");
+  if (hasFrontend && hasBackend) projectTypes.push("Full-stack");
+  if (!projectTypes.length) projectTypes.push("General Project");
+
+  let score = 40;
+  if (hasReadme) score += 15;
+  if (readme.length >= 500) score += 10;
+  if (hasLiveDemo) score += 10;
+  if (hasPackage || hasPythonDeps) score += 10;
+  if (paths.length >= 8) score += 10;
+  if (hasBackend || hasFrontend) score += 15;
+  if (hasAi || hasSecurity) score += 15;
+  if (recentlyUpdated) score += 10;
+  if (lowerPaths.some((path) => path.startsWith("license")) || lowerPaths.includes(".gitignore")) score += 5;
+  if (repo.fork) score -= 15;
+
+  return {
+    name: repo.name,
+    url: repo.html_url,
+    description: repo.description,
+    language: repo.language,
+    stars: repo.stargazers_count || 0,
+    forks: repo.forks_count || 0,
+    updated_at: repo.updated_at,
+    created_at: repo.created_at,
+    has_readme: hasReadme,
+    has_live_demo: hasLiveDemo,
+    has_backend: hasBackend,
+    has_frontend: hasFrontend,
+    has_ai: hasAi,
+    has_security: hasSecurity,
+    has_tests: hasTests,
+    has_docker: hasDocker,
+    is_fork: Boolean(repo.fork),
+    project_types: projectTypes,
+    score: clamp(score),
+  };
+}
+
+function makeSkillMap(repos) {
+  const totals = Object.fromEntries(SKILL_KEYS.map((key) => [key, 0]));
+  if (!repos.length) return Object.fromEntries(SKILL_KEYS.map((key) => [key, 0]));
+  repos.forEach((repo) => {
+    if (repo.has_ai) totals["AI / ML"] += 26;
+    if (repo.has_security) totals.Cybersecurity += 26;
+    if (repo.has_frontend) totals.Frontend += 24;
+    if (repo.has_backend) totals.Backend += 24;
+    if ((repo.language || "").toLowerCase() === "python" && repo.has_ai) totals["Data Science"] += 16;
+    if (repo.has_readme) totals.Documentation += 18;
+    if (repo.has_live_demo || repo.has_docker) totals.Deployment += 20;
+    totals["Project Complexity"] += Math.min(35, Math.round(repo.score / 3));
+    if (!repo.is_fork) totals.Consistency += 8;
+    if (repo.updated_at && (Date.now() - new Date(repo.updated_at).getTime()) / 86400000 <= 180) totals.Consistency += 14;
+  });
+  return Object.fromEntries(SKILL_KEYS.map((key) => [key, clamp(totals[key] / repos.length)]));
+}
+
+function makeClientReport(user, repos) {
+  const skillMap = makeSkillMap(repos);
+  const builderScore = clamp(
+    repos.reduce((sum, repo) => sum + repo.score, 0) / Math.max(repos.length, 1) * 0.55 +
+    ((skillMap.Backend + skillMap.Frontend + skillMap["AI / ML"] + skillMap.Cybersecurity) / 4) * 0.45
+  );
+  const ranked = Object.entries(skillMap).sort((a, b) => b[1] - a[1]);
+  const strong = ranked.filter(([, value]) => value >= 35).slice(0, 5).map(([key]) => key);
+  const weak = ranked.filter(([, value]) => value < 25).slice(0, 5).map(([key]) => key);
+  const identity = ranked[0]?.[1] >= 25 ? `${ranked[0][0]} Builder` : "Project Builder";
+  const topRepos = repos.slice(0, 3).map((repo) => repo.name).join(", ") || "public repositories";
+  return {
+    id: `client-${Date.now()}`,
+    source: "client",
+    username: user.login,
+    avatar_url: user.avatar_url,
+    github_url: user.html_url,
+    builder_score: builderScore,
+    main_identity: identity,
+    skill_map: skillMap,
+    strong_areas: strong,
+    weak_areas: weak,
+    suggested_roles: [identity, "Junior Full-Stack Developer", "MVP Developer"],
+    repos,
+    ai_summary: `${user.login}'s public GitHub evidence was scanned directly in the browser. The strongest visible signals are ${strong.slice(0, 3).join(", ") || "still emerging"}, with representative repositories including ${topRepos}. This report is based on public repo metadata, README files, and project structure, so private work and hidden contributions are not included.`,
+    improvement_plan: [
+      "Pin the strongest 3 repositories on GitHub.",
+      "Add setup, usage, screenshots, and architecture notes to key README files.",
+      "Deploy at least one flagship project publicly.",
+      "Add tests or CI workflows to show quality discipline.",
+      "Add LICENSE and .gitignore files to portfolio repositories.",
+      "Keep one main project active for the next 30 days.",
+    ],
+    created_at: new Date().toISOString(),
+  };
+}
+
+async function analyzeInBrowser(username) {
+  const user = await fetchJson(`https://api.github.com/users/${username}`);
+  const rawRepos = await fetchJson(`https://api.github.com/users/${username}/repos?per_page=5&sort=updated&type=owner`);
+  const repos = [];
+  for (const repo of rawRepos.filter((item) => !item.private).slice(0, 5)) {
+    const [readme, paths] = await Promise.all([
+      fetchReadme(user.login, repo.name),
+      fetchTree(user.login, repo.name, repo.default_branch || "main"),
+    ]);
+    repos.push(scanRepo(repo, paths, readme));
+  }
+  return makeClientReport(user, repos);
+}
+
+function markdownForReport(report) {
+  const lines = [
+    `# SkillProof Report - ${report.username}`,
+    "",
+    `Builder Score: ${report.builder_score}/100`,
+    `Main Identity: ${report.main_identity}`,
+    `GitHub: ${report.github_url}`,
+    "",
+    "## Skill Map",
+    "",
+    ...Object.entries(report.skill_map).sort((a, b) => b[1] - a[1]).map(([key, value]) => `- ${key}: ${value}/100`),
+    "",
+    "## Strong Areas",
+    "",
+    ...(report.strong_areas.length ? report.strong_areas : ["No strong public signal yet"]).map((item) => `- ${item}`),
+    "",
+    "## Weak Areas",
+    "",
+    ...(report.weak_areas.length ? report.weak_areas : ["No major weak signal flagged"]).map((item) => `- ${item}`),
+    "",
+    "## AI Summary",
+    "",
+    report.ai_summary,
+    "",
+    "## 30-Day Improvement Plan",
+    "",
+    ...report.improvement_plan.map((item, index) => `${index + 1}. ${item}`),
+  ];
+  return lines.join("\n");
 }
 
 function IconButton({ children, className = "", ...props }) {
@@ -277,8 +487,15 @@ function App() {
       setReport(payload);
       setStatus(`Scanned ${payload.repos.length} repositories.`);
     } catch (err) {
-      setError(err.message);
-      setStatus("");
+      try {
+        setStatus("Backend is waking up, using browser scanner now...");
+        const fallbackReport = await analyzeInBrowser(clean);
+        setReport(fallbackReport);
+        setStatus(`Live browser scan complete. Scanned ${fallbackReport.repos.length} repositories.`);
+      } catch (fallbackError) {
+        setError(`${err.message}. Browser fallback also failed: ${fallbackError.message}`);
+        setStatus("");
+      }
     } finally {
       setScanning(false);
     }
@@ -291,6 +508,16 @@ function App() {
 
   function exportMarkdown() {
     if (!report) return;
+    if (report.source === "client") {
+      const blob = new Blob([markdownForReport(report)], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `skillproof-${report.username}.md`;
+      link.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
     window.open(`${API_BASE}/report/${report.id}/markdown`, "_blank", "noreferrer");
   }
 
