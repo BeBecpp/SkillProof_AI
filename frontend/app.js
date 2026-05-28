@@ -44,7 +44,15 @@ function includesAny(text, words) {
 
 async function fetchJson(url) {
   const response = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
-  if (!response.ok) throw new Error(`GitHub request failed: ${response.status}`);
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error("GitHub public API limit reached. Showing demo data instead.");
+    }
+    if (response.status === 404) {
+      throw new Error("GitHub username not found. Check the spelling and try again.");
+    }
+    throw new Error(`GitHub request failed: ${response.status}`);
+  }
   return response.json();
 }
 
@@ -184,6 +192,85 @@ function makeClientReport(user, repos) {
     ],
     created_at: new Date().toISOString(),
   };
+}
+
+function makeDemoReport(username) {
+  const repos = [
+    {
+      name: "SkillProof_AI",
+      url: "https://github.com/BeBecpp/SkillProof_AI",
+      description: "Proof-of-skill analyzer with GitHub scanning, builder score, skill map, AI report, and markdown export.",
+      language: "Python",
+      stars: 0,
+      forks: 0,
+      has_readme: true,
+      has_live_demo: true,
+      has_backend: true,
+      has_frontend: true,
+      has_ai: true,
+      has_security: true,
+      has_tests: false,
+      has_docker: false,
+      is_fork: false,
+      project_types: ["AI / ML", "Cybersecurity", "Frontend", "Backend", "Full-stack"],
+      score: 92,
+    },
+    {
+      name: "my_blog",
+      url: "https://github.com/BeBecpp/my_blog",
+      description: "Minimal 3D portfolio with custom cursor, hover interactions, and project-focused storytelling.",
+      language: "HTML",
+      stars: 0,
+      forks: 0,
+      has_readme: true,
+      has_live_demo: true,
+      has_backend: false,
+      has_frontend: true,
+      has_ai: false,
+      has_security: false,
+      has_tests: false,
+      has_docker: false,
+      is_fork: false,
+      project_types: ["Frontend", "Portfolio"],
+      score: 82,
+    },
+    {
+      name: "Crypto-tool",
+      url: "https://github.com/BeBecpp/Crypto-tool",
+      description: "CTF cryptography helper for repeated beginner workflows and challenge solving.",
+      language: "Python",
+      stars: 0,
+      forks: 0,
+      has_readme: true,
+      has_live_demo: false,
+      has_backend: true,
+      has_frontend: false,
+      has_ai: false,
+      has_security: true,
+      has_tests: false,
+      has_docker: false,
+      is_fork: false,
+      project_types: ["Cybersecurity", "Utility"],
+      score: 78,
+    },
+  ];
+  const user = {
+    login: username || "BeBecpp",
+    avatar_url: `https://github.com/${username || "BeBecpp"}.png`,
+    html_url: `https://github.com/${username || "BeBecpp"}`,
+  };
+  const report = makeClientReport(user, repos);
+  report.source = "demo";
+  report.ai_summary = "Demo report shown because GitHub's public browser API is temporarily rate-limited or the username could not be fetched. The live tool still works: it scans public repositories when GitHub allows the request, and this fallback keeps the interface demoable for portfolios and presentations.";
+  report.improvement_plan = [
+    "Try the exact GitHub username, for example BeBecpp.",
+    "Wait a few minutes if GitHub public API rate limit was reached.",
+    "Add a backend GitHub token on Render for more stable scans.",
+    "Keep the public GitHub Pages UI available as the demo surface.",
+    "Use pinned repositories to make scanned evidence clearer.",
+    "Export the markdown report after a successful scan.",
+  ];
+  return report;
 }
 
 async function analyzeInBrowser(username) {
@@ -545,7 +632,7 @@ function App() {
     setScanning(true);
     setError("");
     setStatus("Scanning repositories and generating the AI report...");
-    try {
+  try {
       if (USE_BROWSER_SCANNER_FIRST) {
         const browserReport = await analyzeInBrowser(clean);
         setReport(browserReport);
@@ -568,8 +655,10 @@ function App() {
         setReport(fallbackReport);
         setStatus(`Live browser scan complete. Scanned ${fallbackReport.repos.length} repositories.`);
       } catch (fallbackError) {
-        setError(`${err.message}. Browser fallback also failed: ${fallbackError.message}`);
-        setStatus("");
+        const demoReport = makeDemoReport(clean === "bebecppS" ? "BeBecpp" : clean);
+        setReport(demoReport);
+        setStatus("GitHub is rate-limited or the username was not found. Showing demo data.");
+        setError("");
       }
     } finally {
       setScanning(false);
